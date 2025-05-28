@@ -103,7 +103,7 @@ Placeholder for screenshots showcasing game mechanics, champions, and battles.
 * [ ] Dynamic NPC spawning and interactions
 * [ ] UI polish and player experience enhancements
 
-See the \[open issues]\([https://github.com/](https://github.com/)IsaacSShade/Thraeo/issues) for a full list of proposed features and known issues.
+See the \[open issues]\([https://github.com/](https://github.com/IsaacSShade/Thraeo/issues) for a full list of proposed features and known issues.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
