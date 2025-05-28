@@ -48,7 +48,7 @@
 
 ## About The Project
 
-Thraeo is a tactical, strategic game inspired by the lesser-known mobile game, Starrows. Players select unique champions with different types of flair for greater strategy. They'll level up, battle enemy factions, and strategically build defenses and armies in their castle. The ultimate goal: protect your king and eliminate enemy kingdoms by spearheading massive armies into epic battles.
+Thraeo is a tactical, MOBA-like strategic game inspired by the lesser-known mobile game, Starrows. Players select unique champions with different mechanics or flavor for greater strategical opportunities and playstyles. They'll level up, battle enemy factions, and strategically build defenses and armies in their castle. The ultimate goal: protect your king and eliminate enemy kingdoms by spearheading massive armies into epic battles.
 
 ([Link to game](!https://www.roblox.com/games/97238312755881/Thraeo))
 
@@ -77,18 +77,16 @@ This section below contains the major frameworks/libraries used to create Thraeo
 
 ## Screenshots
 
-Placeholder for screenshots showcasing game mechanics, champions, and battles.
-
 <p align="center" width="100%">
-    <img width="100%" src="<!-- Screenshot Link Here -->">
+    <img width="100%" src="pictures/entering.png">
 </p>
 
 <p align="center" width="100%">
-    <img width="100%" src="<!-- Screenshot Link Here -->">
+    <img width="100%" src="pictures/attack.png">
 </p>
 
 <p align="center" width="100%">
-    <img width="100%" src="<!-- Screenshot Link Here -->">
+    <img width="100%" src="pictures/lastStand.png">
 </p>
 
 <p align="right">(<a href="#top">back to top</a>)</p>
