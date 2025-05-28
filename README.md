@@ -68,7 +68,6 @@ This section below contains the major frameworks/libraries used to create Thraeo
 
 * Luau
 * Roblox Studio
-* Blender
 * Rojo (for syncing the project to GitHub)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
