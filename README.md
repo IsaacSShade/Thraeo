@@ -119,23 +119,27 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## Acknowledgments
 
-Special thanks to contributors:
+Roblox game made by
 
 * Aiden Tabrah
+
+Special thanks to
+
+* Arkounay who created the inspiration, [Starrows](https://play.google.com/store/apps/details?id=com.outerark.starrows&hl=en_US)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-\[contributors-shield]: [https://img.shields.io/github/contributors/](https://img.shields.io/github/contributors/)<!-- YourUsername -->/Thraeo.svg?style=for-the-badge
-\[contributors-url]: [https://github.com/](https://github.com/)<!-- YourUsername -->/Thraeo/graphs/contributors
-\[forks-shield]: [https://img.shields.io/github/forks/](https://img.shields.io/github/forks/)<!-- YourUsername -->/Thraeo.svg?style=for-the-badge
-\[forks-url]: [https://github.com/](https://github.com/)<!-- YourUsername -->/Thraeo/network/members
-\[stars-shield]: [https://img.shields.io/github/stars/](https://img.shields.io/github/stars/)<!-- YourUsername -->/Thraeo.svg?style=for-the-badge
-\[stars-url]: [https://github.com/](https://github.com/)<!-- YourUsername -->/Thraeo/stargazers
-\[issues-shield]: [https://img.shields.io/github/issues/](https://img.shields.io/github/issues/)<!-- YourUsername -->/Thraeo.svg?style=for-the-badge
-\[issues-url]: [https://github.com/](https://github.com/)<!-- YourUsername -->/Thraeo/issues
-\[license-shield]:[https://img.shields.io/github/license/](https://img.shields.io/github/license/)<!-- YourUsername -->/Thraeo.svg?style=for-the-badge
-\[license-url]: [https://github.com/](https://github.com/)<!-- YourUsername -->/Thraeo/blob/main/LICENSE.txt
-\[linkedin-shield]: [https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge\&logo=linkedin\&colorB=555](https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555)
-\[linkedin-url]: <!-- Your LinkedIn URL Here -->
+[contributors-shield]: https://img.shields.io/github/contributors/IsaacSShade/Thraeo.svg?style=for-the-badge
+[contributors-url]: https://github.com/IsaacSShade/Thraeo/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/IsaacSShade/Thraeo.svg?style=for-the-badge
+[forks-url]: https://github.com/IsaacSShade/Thraeo/network/members
+[stars-shield]: https://img.shields.io/github/stars/IsaacSShade/Thraeo.svg?style=for-the-badge
+[stars-url]: https://github.com/IsaacSShade/Thraeo/stargazers
+[issues-shield]: https://img.shields.io/github/issues/IsaacSShade/Thraeo.svg?style=for-the-badge
+[issues-url]: https://github.com/IsaacSShade/Thraeo/issues
+[license-shield]: https://img.shields.io/github/license/IsaacSShade/Thraeo.svg?style=for-the-badge
+[license-url]: https://github.com/IsaacSShade/Thraeo/blob/main/LICENSE.txt
+[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-url]: https://www.linkedin.com/in/aiden-tabrah/
