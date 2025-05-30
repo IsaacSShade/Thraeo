@@ -1,16 +1,16 @@
 local Archer = {}
 Archer.__index = Archer
 
+local Config = require(game.ReplicatedStorage:WaitForChild("Config"))
+
+
 -- Constants for Archer behavior
-local HEALTH = 50
-local RANGE = 30         -- Detection range for enemies
-local COOLDOWN = 2       -- Cooldown time between attacks (in seconds)
-local DAMAGE = 10        -- Damage dealt per attack
+local stats  = Config.UNIT_STATS[Config.ARCHER_NAME]
 
 -- Required modules and services
 local King = require(game.ServerScriptService:FindFirstChild("King", true))
 local Team = require(game.ServerScriptService:FindFirstChild("Team", true))
-local Constants = require(game.ReplicatedStorage:FindFirstChild("Constants", true))
+local Config = require(game.ReplicatedStorage:FindFirstChild("Config", true))
 local BuildingPlacement = require(game.ServerScriptService:FindFirstChild("BuildingPlacement", true))
 local NPC = require(game.ServerScriptService:FindFirstChild("NPC", true))
 local PathfindingService = game:GetService("PathfindingService")
@@ -23,7 +23,7 @@ Archer.entities = {}
 -- Output: None (cleans up and removes the Archer from the game)
 local function OnDeath(archer)
 	spawn(function()
-		wait(COOLDOWN + 1) -- Wait to ensure cleanup after cooldown
+		wait(stats.Cooldown + 1) -- Wait to ensure cleanup after cooldown
 		Archer.entities[archer.model] = nil -- Remove from the entities table
 		if archer.model then
 			archer.model:Destroy() -- Destroy the Archer model
@@ -34,11 +34,11 @@ local function OnDeath(archer)
 end
 
 local function DetermineBuildingStatus(buildingName, health)
-	if health > Constants.BUILDING_HEALTH[buildingName] * 80 / 100 then
+	if health > Config.BUILDING_HEALTH[buildingName] * 80 / 100 then
 		return "100"
-	elseif health > Constants.BUILDING_HEALTH[buildingName] * 50 / 100 then
+	elseif health > Config.BUILDING_HEALTH[buildingName] * 50 / 100 then
 		return "80"
-	elseif health > Constants.BUILDING_HEALTH[buildingName] * 20 / 100 then
+	elseif health > Config.BUILDING_HEALTH[buildingName] * 20 / 100 then
 		return "50"
 	elseif health > 0 then
 		return "20"
@@ -65,8 +65,8 @@ function Archer.new(position, teamColor)
 	self.model.PrimaryPart.CFrame = CFrame.new(position)
 	self.model.Parent = game.Workspace
 	
-	self.model.Humanoid.MaxHealth = HEALTH
-	self.model.Humanoid.Health = HEALTH
+	self.model.Humanoid.MaxHealth = stats.Health
+	self.model.Humanoid.Health = stats.Health
 
 	-- Set up behavior when the Archer dies
 	self.model.Humanoid.Died:Once(function()
@@ -110,7 +110,7 @@ function Archer:FindPath()
 		self.model.Humanoid.MoveToFinished:Wait(1)
 
 		-- Check for nearby enemies within the detection range
-		local PartsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, RANGE)
+		local PartsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, stats.Range)
 		for _, part in ipairs(PartsInRegion) do
 			local npc = nil
 			local building = nil
@@ -179,7 +179,7 @@ function Archer:FindPath()
 						continue
 					end
 					
-					enemyTeam:AddGold(Constants.KILL_REWARDS[self.model.Name])
+					enemyTeam:AddGold(Config.KILL_REWARDS[self.model.Name])
 					break
 				end
 			end
@@ -193,13 +193,12 @@ end
 function Archer:FightEnemy(enemy)
 	self.behavior = "Attacking"
 	
-	local archerName = self.model.Name
 	local enemyTeam = Team.GetTeamFromColor(NPC.entities[enemy].teamColor)
 
 	-- Continue attacking until either the Archer or the enemy is dead
 	while enemy.Humanoid.Health > 0 and self.model.Humanoid.Health > 0 do
-		enemy.Humanoid.Health -= DAMAGE -- Deal damage to the enemy
-		wait(COOLDOWN) -- Wait for the cooldown period
+		enemy.Humanoid.Health -= stats.Damage -- Deal damage to the enemy
+		wait(stats.Cooldown) -- Wait for the cooldown period
 	end
 
 	-- If the Archer survives, continue pathfinding
@@ -208,14 +207,13 @@ function Archer:FightEnemy(enemy)
 			self:FindPath()
 		end)
 	else
-		enemyTeam:AddGold(Constants.KILL_REWARDS[archerName])
+		enemyTeam:AddGold(Config.KILL_REWARDS[Config.ARCHER_NAME])
 	end
 end
 
 function Archer:FightBuilding(building)
 	self.behavior = "Attacking"
 
-	local archerName = self.model.Name
 	local buildingName = building.Name
 	local buildingHealth = building:FindFirstChild("Health")
 	local buildingStatus = nil
@@ -225,14 +223,14 @@ function Archer:FightBuilding(building)
 	
 	while building:FindFirstChild("Health") and self.model.Humanoid.Health > 0 do
 		local preStatus = DetermineBuildingStatus(buildingName, buildingHealth.Value)
-		buildingHealth.Value -= DAMAGE -- Deal damage to the enemy
+		buildingHealth.Value -= stats.Damage -- Deal damage to the enemy
 		local postStatus = DetermineBuildingStatus(buildingName, buildingHealth.Value)
 		
 		if preStatus ~= postStatus then
 			BuildingPlacement.ChangeBuildingAppearance(building, postStatus, self.teamColor)
 		end
 
-		wait(COOLDOWN) -- Wait for the cooldown period
+		wait(stats.Cooldown) -- Wait for the cooldown period
 		
 		if not building:FindFirstChild("Health") then
 			local PartsInRegion = workspace:GetPartBoundsInRadius(buildingCFrame.Position, 1)
@@ -251,25 +249,24 @@ function Archer:FightBuilding(building)
 			self:FindPath()
 		end)
 	else
-		Team.entities[building.Parent.Parent]:AddGold(Constants.KILL_REWARDS[archerName])
+		Team.entities[building.Parent.Parent]:AddGold(Config.KILL_REWARDS[Config.ARCHER_NAME])
 	end
 end
 
 function Archer:FightPlayer(character)
 	self.behavior = "Attacking"
 
-	local archerName = self.model.Name
 	local enemyTeam = Team.GetTeamFromPlayer(game.Players:FindFirstChild(character.Name))
 	local enemyName = character.Name
 	local inRange = true
 	
 	-- Continue attacking until either the Archer or the enemy is dead
 	while inRange and character.Humanoid.Health > 0 and self.model.Humanoid.Health > 0 do
-		character.Humanoid.Health -= DAMAGE -- Deal damage to the enemy
-		wait(COOLDOWN) -- Wait for the cooldown period
+		character.Humanoid.Health -= stats.Damage -- Deal damage to the enemy
+		wait(stats.Cooldown) -- Wait for the cooldown period
 		
 		inRange = false
-		local partsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, RANGE)
+		local partsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, stats.Range)
 		for _,part in partsInRegion do
 			if part.Parent.Name == enemyName then
 				inRange = true
@@ -284,7 +281,7 @@ function Archer:FightPlayer(character)
 			self:FindPath()
 		end)
 	else
-		enemyTeam:AddGold(Constants.KILL_REWARDS[archerName])
+		enemyTeam:AddGold(Config.KILL_REWARDS[Config.ARCHER_NAME])
 	end
 end
 

@@ -1,5 +1,5 @@
 local player = game.Players.LocalPlayer
-local gui = player.PlayerGui:FindFirstChild("SelectMode")
+local gui = player.PlayerGui:WaitForChild("SelectMode")
 local firstPlayer = gui.Frame.Frame.Right.FirstPlayer
 local secondPlayer = gui.Frame.Frame.Right.SecondPlayer
 

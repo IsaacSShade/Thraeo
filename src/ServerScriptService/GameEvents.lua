@@ -12,7 +12,7 @@ local King              = require(ServerScripts:FindFirstChild("King", true))
 local Team              = require(ServerScripts:FindFirstChild("Team", true))
 local NPC               = require(ServerScripts:FindFirstChild("NPC", true))
 local BuildingPlacement = require(ServerScripts:FindFirstChild("BuildingPlacement", true))
-local Constants         = require(Replicated:FindFirstChild("Constants", true))
+local Config            = require(Replicated:FindFirstChild("Config", true))
 local GameManager       = require(ServerScripts:WaitForChild("GameManager"))
 
 -- internal state

@@ -4,7 +4,7 @@ local BuildingPlacement = {}
 -- Handles team setup, game modes, events, and building placement
 
 local Team = require(game.ServerScriptService:FindFirstChild("Team", true))
-local Constants = require(game.ReplicatedStorage:FindFirstChild("Constants", true))
+local Config = require(game.ReplicatedStorage:FindFirstChild("Config", true))
 
 -- This function exists because it doesn't need the player argument but that's what's automatically passed
 function BuildingPlacement.PlaceBuildingEvent(player, modelName, primaryCFrame, buildingFolder, status, health)
@@ -31,10 +31,10 @@ end
 function BuildingPlacement.PlaceBuilding(modelName, primaryCFrame, buildingFolder)
 	local team = Team.entities[buildingFolder.Parent]
 	local status = "100"
-	local healthValue = Constants.BUILDING_HEALTH[modelName] * tonumber(status) / 100
+	local healthValue = Config.BUILDING_HEALTH[modelName] * tonumber(status) / 100
 
-	if team.gold >= Constants.BUILDING_COSTS[modelName] then
-		team:SubtractGold(Constants.BUILDING_COSTS[modelName])
+	if team.gold >= Config.BUILDING_COSTS[modelName] then
+		team:SubtractGold(Config.BUILDING_COSTS[modelName])
 
 		CreateBuilding(modelName, primaryCFrame, buildingFolder, status, healthValue)
 	end
@@ -48,7 +48,7 @@ function BuildingPlacement.ChangeBuildingAppearance(building, status, teamColor)
 	print(building.Name .. " | Changing Appearance | >" .. status)
 	if status == "0" then 
 		local archerTeam = Team.GetTeamFromColor(teamColor)
-		archerTeam:AddGold(Constants.KILL_REWARDS[building.Name])
+		archerTeam:AddGold(Config.KILL_REWARDS[building.Name])
 		building:Destroy() 
 		building = nil
 		return

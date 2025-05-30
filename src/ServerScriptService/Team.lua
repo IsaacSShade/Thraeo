@@ -1,9 +1,14 @@
 local Team = {}
 Team.__index = Team
 
-local Constants = require(game.ReplicatedStorage:FindFirstChild("Constants", true))
+local Config = require(game.ReplicatedStorage:FindFirstChild("Config", true))
 
 Team.entities = {}
+Team.byPlayer = {}
+Team.byColor  = {}
+
+Team.TeamJoined = Instance.new("BindableEvent")
+Team.TeamLeft   = Instance.new("BindableEvent")
 
 function Team.GetEntityAmount()
 	local count = 0
@@ -14,62 +19,78 @@ function Team.GetEntityAmount()
 end
 
 function Team.GetTeamFromPlayer(player)
-	local color = player:FindFirstChild("TeamColor")
-
-	for _,baseFolder in game.Workspace.Bases:GetChildren() do
-		if Team.entities[baseFolder].color == color.Value then
-			return Team.entities[baseFolder]
-		end
-	end
+	return Team.byPlayer[player]
 end
 
 function Team.GetTeamFromColor(color)
-	for _,baseFolder in game.Workspace.Bases:GetChildren() do
-		if Team.entities[baseFolder].color == color then
-			return Team.entities[baseFolder]
-		end
-	end
+	return Team.byColor[color]
 end
 
 -- players can be null
 function Team.new(color, base, players)
-	local self = setmetatable({}, Team)
-	
-	self.color = color
-	self.players = players
-	self.gold = 0
-	self.base = base
-	
-	if self.players == nil then
-		self.players = {}
-	else
-		for _,player in players do
-			player.RespawnLocation = self.base:FindFirstChild("KingPavillion").SpawnLocation
-			player:LoadCharacter()
+	local self   = setmetatable({}, Team)
+	self.color   = color
+	self.base    = base
+	self.gold    = 0
+	self.players = {}
+
+	-- register color lookup
+	Team.entities[base] = self
+	Team.byColor[color] = self
+
+	-- add initial players
+	if players then
+		for _, p in ipairs(players) do
+			self:AddPlayer(p)
 		end
 	end
-	
-	self:AddGold(Constants.STARTING_GOLD_AMOUNT)
-	Team.entities[base] = self
+
+	-- starting gold
+	self:AddGold(Config.STARTING_GOLD_AMOUNT)
+
 	return self
 end
 
 function Team:AddPlayer(player)
+	assert(player and typeof(player) == "Instance" and player:IsA("Player"), "Team:AddPlayer — expected a Player instance")
+	assert(not Team.byPlayer[player], ("Team:AddPlayer — player %s is already on a team"):format(player.Name))
+	
 	table.insert(self.players, player)
-	player.RespawnLocation = self.base:FindFirstChild("KingPavillion").SpawnLocation
+	Team.byPlayer[player] = self
+
+	-- set spawn location
+	local spawnBuilding = self.base:FindFirstChild(Config.KING_BUILDING_NAME)
+	assert(spawnBuilding and spawnBuilding:FindFirstChild("SpawnLocation"), ("Team:AddPlayer — missing %s.SpawnLocation in base"):format(Config.KING_BUILDING_NAME))
+	if spawnBuilding and spawnBuilding:FindFirstChild("SpawnLocation") then
+		player.RespawnLocation = spawnBuilding.SpawnLocation
+	end
 	player:LoadCharacter()
+
+	-- fire event
+	Team.TeamJoined:Fire(player, self)
+end
+
+function Team:RemovePlayer(player)
+	assert(player and Team.byPlayer[player] == self, "Team:RemovePlayer — player is not on this team")
+	for i, p in ipairs(self.players) do
+		if p == player then
+			table.remove(self.players, i)
+			Team.byPlayer[player] = nil
+			Team.TeamLeft:Fire(player, self)
+			break
+		end
+	end
 end
 
 function Team:SubtractGold(amount)
-	self:AddGold(-1 * amount)
-	
+	self:AddGold(-amount)
 end
-
 function Team:AddGold(amount)
-	self.gold += amount
-	for _,player in self.players do
-		game.ReplicatedStorage.Events:FindFirstChild("UpdateMoneyUI", true):InvokeClient(player, self.gold)
-	end
+    self.gold += amount
+    for _, p in ipairs(self.players) do
+        game.ReplicatedStorage.Events:FindFirstChild("UpdateMoneyUI", true)
+            :InvokeClient(p, self.gold)
+    end
 end
 
 return Team

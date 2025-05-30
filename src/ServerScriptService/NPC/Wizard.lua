@@ -1,44 +1,38 @@
+-- Wizard.lua
 local Wizard = {}
 Wizard.__index = Wizard
 
--- Constants for Wizard behavior
-local HEALTH = 30
-local RANGE = 25         -- Detection range for enemies
-local COOLDOWN = 5       -- Cooldown time between attacks (in seconds)
-local DAMAGE = 50        -- Damage dealt per attack
-
--- Required modules and services
-local King = require(game.ServerScriptService:FindFirstChild("King", true))
-local Team = require(game.ServerScriptService:FindFirstChild("Team", true))
-local Constants = require(game.ReplicatedStorage:FindFirstChild("Constants", true))
-local BuildingPlacement = require(game.ServerScriptService:FindFirstChild("BuildingPlacement", true))
-local NPC = require(game.ServerScriptService:FindFirstChild("NPC", true))
-local PathfindingService = game:GetService("PathfindingService")
-
--- Table to track all Wizard instances
 Wizard.entities = {}
 
--- Handles the death of an Wizard
--- Input: wizard (table) - The Wizard instance that died
--- Output: None (cleans up and removes the Wizard from the game)
-local function OnDeath(wizard)
+local King              = require(game.ServerScriptService:FindFirstChild("King", true))
+local Team              = require(game.ServerScriptService:FindFirstChild("Team", true))
+local Config            = require(game.ReplicatedStorage:FindFirstChild("Config", true))
+local BuildingPlacement = require(game.ServerScriptService:FindFirstChild("BuildingPlacement", true))
+local NPC               = require(game.ServerScriptService:FindFirstChild("NPC", true))
+local PathfindingService = game:GetService("PathfindingService")
+
+-- grab all wizard stats from Config
+local stats = Config.UNIT_STATS[Config.WIZARD_NAME]
+
+-- Handles the death of a Wizard
+local function OnDeath(self)
 	spawn(function()
-		wait(COOLDOWN + 1) -- Wait to ensure cleanup after cooldown
-		Wizard.entities[wizard.model] = nil -- Remove from the entities table
-		if wizard.model then
-			wizard.model:Destroy() -- Destroy the Wizard model
+		-- ensure cleanup after cooldown period
+		wait(stats.Cooldown + 1)
+		Wizard.entities[self.model] = nil
+		if self.model then
+			self.model:Destroy()
 		end
-		wizard.model = nil -- Clear the reference to the model
-		wizard = nil       -- Clear the Wizard instance
 	end)
 end
 
 local function DetermineBuildingStatus(buildingName, health)
-	if health > Constants.BUILDING_HEALTH[buildingName] * 80 / 100 then
+	local maxHealth = Config.BUILDING_HEALTH[buildingName]
+	if health > maxHealth * 0.8 then
 		return "100"
-	elseif health > Constants.BUILDING_HEALTH[buildingName] * 50 / 100 then
+	elseif health > maxHealth * 0.5 then
 		return "80"
-	elseif health > Constants.BUILDING_HEALTH[buildingName] * 20 / 100 then
+	elseif health > maxHealth * 0.2 then
 		return "50"
 	elseif health > 0 then
 		return "20"
@@ -48,138 +42,102 @@ local function DetermineBuildingStatus(buildingName, health)
 end
 
 -- Creates a new Wizard instance
--- Input: position (Vector3) - Spawn position of the Wizard
---        teamColor (Color3) - The team color of the Wizard
--- Output: Wizard (table) - The newly created Wizard instance
 function Wizard.new(position, teamColor)
 	local self = setmetatable({}, Wizard)
 
-	-- Clone the Wizard model from ReplicatedStorage and initialize properties
-	self.model = game.ReplicatedStorage.NPCs:FindFirstChild("Wizard"):Clone()
+	-- Clone & initialize model
+	self.model = game.ReplicatedStorage.NPCs:FindFirstChild(Config.WIZARD_NAME):Clone()
 	self.teamColor = teamColor
-	self.kingGoal = King.GetKingGoal(self.teamColor).model -- Target King for this team
-	self.behavior = "Spawning"
+	self.kingGoal  = King.GetKingGoal(teamColor).model
+	self.behavior  = "Spawning"
 
-	-- Set the Wizard's appearance and spawn position
 	self.model["Body Colors"].TorsoColor3 = teamColor
 	self.model.PrimaryPart.CFrame = CFrame.new(position)
-	self.model.Parent = game.Workspace
-	
-	self.model.Humanoid.MaxHealth = HEALTH
-	self.model.Humanoid.Health = HEALTH
+	self.model.Parent = workspace
 
-	-- Set up behavior when the Wizard dies
+	-- apply stats
+	self.model.Humanoid.MaxHealth = stats.Health
+	self.model.Humanoid.Health    = stats.Health
+
+	-- hook death
 	self.model.Humanoid.Died:Once(function()
 		OnDeath(self)
 	end)
 
-	-- Start pathfinding
+	-- begin pathfinding
 	spawn(function()
 		self:FindPath()
 	end)
 
-	-- Add the Wizard to the entities table
 	Wizard.entities[self.model] = self
-	NPC.new(self.model, self.teamColor)
+	NPC.new(self.model, teamColor)
 	return self
 end
 
--- Finds a path to the King's goal and moves the Wizard along it
--- Input: None (uses Wizard's internal properties)
--- Output: None (moves the Wizard or engages in combat if enemies are found)
 function Wizard:FindPath()
 	if not self.kingGoal then
-		self.kingGoal = King.GetKingGoal(self.teamColor).model -- Update King goal if missing
+		self.kingGoal = King.GetKingGoal(self.teamColor).model
 	end
 
 	self.behavior = "Moving"
 
-	-- Create a path to the King's position
 	local path = PathfindingService:CreatePath()
 	path:ComputeAsync(self.model.PrimaryPart.Position, self.kingGoal.PrimaryPart.Position)
 
 	if path.Status ~= Enum.PathStatus.Success then
-		print("Pathing failed for Wizard in the " .. tostring(self.teamColor) .. " team.")
+		warn("Pathing failed for Wizard team "..tostring(self.teamColor))
 		return
 	end
 
-	-- Move through the path waypoints
-	local waypoints = path:GetWaypoints()
-	for _, waypoint in ipairs(waypoints) do
-		self.model.Humanoid:MoveTo(waypoint.Position + Vector3.new(math.random(2), 0, math.random(2)))
+	for _, waypoint in ipairs(path:GetWaypoints()) do
+		self.model.Humanoid:MoveTo(waypoint.Position + Vector3.new(math.random(2),0,math.random(2)))
 		self.model.Humanoid.MoveToFinished:Wait(1)
 
-		-- Check for nearby enemies within the detection range
-		local PartsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, RANGE)
-		for _, part in ipairs(PartsInRegion) do
-			local npc = nil
-			local building = nil
-			
+		-- scan for enemies
+		local parts = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.Position, stats.Range)
+		for _, part in ipairs(parts) do
+			-- building target
 			if game.ReplicatedStorage.Buildings:FindFirstChild(part.Parent.Name) then
-				building = part.Parent
-				local wizardTeam = Team.GetTeamFromColor(self.teamColor)
-				
-				if building.Parent.Parent == wizardTeam.base then
-					continue
+				local building = part.Parent
+				local myTeam = Team.GetTeamFromColor(self.teamColor)
+				if building.Parent.Parent ~= myTeam.base then
+					spawn(function() self:FightBuilding(building) end)
+					return
 				end
-				
-				spawn(function()
-					self:FightBuilding(building)
-				end)
-				
-				return
-			end
-			
-			if game.Players:FindFirstChild(part.Parent.Name) then
-				local playerCharacter = part.Parent
-				local wizardTeam = Team.GetTeamFromColor(self.teamColor)
-				
-				if Team.GetTeamFromPlayer(game.Players:FindFirstChild(playerCharacter.Name)) == wizardTeam then
-					continue
-				end
-				
-				spawn(function()
-					self:FightPlayer(playerCharacter)
-				end)
-				return
 			end
 
-			-- Determine if the part belongs to another NPC or a King
-			npc = NPC.entities[part.Parent]
-			if not npc then
-				continue
+			-- player target
+			if game.Players:FindFirstChild(part.Parent.Name) then
+				local char = part.Parent
+				local myTeam = Team.GetTeamFromColor(self.teamColor)
+				if Team.GetTeamFromPlayer(game.Players:FindFirstChild(char.Name)) ~= myTeam then
+					spawn(function() self:FightPlayer(char) end)
+					return
+				end
 			end
-			
-			-- Engage in combat if an enemy is found
+
+			-- NPC target
+			local npc = NPC.entities[part.Parent]
 			if npc and npc.teamColor ~= self.teamColor and npc.model.Humanoid.Health > 0 then
-				spawn(function()
-					self:FightEnemy(part.Parent)
-				end)
-				
+				spawn(function() self:FightEnemy(part.Parent) end)
 				return
 			end
 		end
 
-		-- Exit if the Wizard is dead
+		-- if dead, award killer
 		if not self.model or self.model.Humanoid.Health <= 0 then
-			local PartsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, 50)
-
-			for _,part in PartsInRegion do
-				if part.Parent:FindFirstChild("Humanoid") and part.Parent.Humanoid.Health ~= 0 then
-					local killer = part.Parent
-					local enemyTeam
-
-					if game.Players:FindFirstChild(killer.Name) then
-						enemyTeam = Team.GetTeamFromPlayer(game.Players:FindFirstChild(killer.Name))
+			local partsNear = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.Position, stats.Range)
+			for _, p in ipairs(partsNear) do
+				if p.Parent:FindFirstChild("Humanoid") and p.Parent.Humanoid.Health > 0 then
+					local killerTeam
+					if game.Players:FindFirstChild(p.Parent.Name) then
+						killerTeam = Team.GetTeamFromPlayer(game.Players:FindFirstChild(p.Parent.Name))
 					else
-						enemyTeam = Team.GetTeamFromColor(NPC.entities[killer].teamColor)
+						killerTeam = Team.GetTeamFromColor(NPC.entities[p.Parent].teamColor)
 					end
-
-					if enemyTeam == Team.GetTeamFromColor(self.teamColor) then
-						continue
+					if killerTeam then
+						killerTeam:AddGold(Config.KILL_REWARDS[Config.WIZARD_NAME])
 					end
-
-					enemyTeam:AddGold(Constants.KILL_REWARDS[self.model.Name])
 					break
 				end
 			end
@@ -187,105 +145,77 @@ function Wizard:FindPath()
 	end
 end
 
--- Engages the Wizard in combat with an enemy
--- Input: enemy (Model) - The enemy to Fight
--- Output: None (handles attacking the enemy and continues pathfinding if victorious)
 function Wizard:FightEnemy(enemy)
 	self.behavior = "Attacking"
-	
-	local wizardName = self.model.Name
 	local enemyTeam = Team.GetTeamFromColor(NPC.entities[enemy].teamColor)
 
-	-- Continue attacking until either the Wizard or the enemy is dead
-	while enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and self.model.Humanoid.Health > 0 do
-		enemy.Humanoid.Health -= DAMAGE -- Deal damage to the enemy
-		wait(COOLDOWN) -- Wait for the cooldown period
+	while enemy.Humanoid.Health > 0 and self.model.Humanoid.Health > 0 do
+		wait(stats.Cooldown)
+		enemy.Humanoid.Health -= stats.Damage
 	end
 
-	-- If the Wizard survives, continue pathfinding
 	if self.model.Humanoid.Health > 0 then
-		spawn(function()
-			self:FindPath()
-		end)
+		spawn(function() self:FindPath() end)
 	else
-		enemyTeam:AddGold(Constants.KILL_REWARDS[wizardName])
+		enemyTeam:AddGold(Config.KILL_REWARDS[Config.WIZARD_NAME])
 	end
 end
 
 function Wizard:FightBuilding(building)
 	self.behavior = "Attacking"
-	--TODO: Building behavior isn't working
-
-	local wizardName = self.model.Name
-	local buildingName = building.Name
+	local buildingName  = building.Name
 	local buildingHealth = building:FindFirstChild("Health")
-	local buildingStatus = nil
-	local buildingCFrame = building.PrimaryPart.CFrame
+	local buildingCFrame  = building.PrimaryPart.CFrame
 
-	-- Continue attacking until either the Wizard or the building is destroyed
-	
 	while building:FindFirstChild("Health") and self.model.Humanoid.Health > 0 do
-		local preStatus = DetermineBuildingStatus(buildingName, buildingHealth.Value)
-		buildingHealth.Value -= DAMAGE -- Deal damage to the enemy
-		local postStatus = DetermineBuildingStatus(buildingName, buildingHealth.Value)
-		
-		if preStatus ~= postStatus then
-			BuildingPlacement.ChangeBuildingAppearance(building, postStatus, self.teamColor)
+		local pre = DetermineBuildingStatus(buildingName, buildingHealth.Value)
+		buildingHealth.Value -= stats.Damage
+		local post = DetermineBuildingStatus(buildingName, buildingHealth.Value)
+
+		if pre ~= post then
+			BuildingPlacement.ChangeBuildingAppearance(building, post, self.teamColor)
 		end
 
-		wait(COOLDOWN) -- Wait for the cooldown period
-		
+		wait(stats.Cooldown)
+
 		if not building:FindFirstChild("Health") then
-			local PartsInRegion = workspace:GetPartBoundsInRadius(buildingCFrame.Position, 1)
-			for _,part in PartsInRegion do
-				if part.Parent.Name == buildingName then
-					building = part.Parent
+			for _, p in ipairs(workspace:GetPartBoundsInRadius(buildingCFrame.Position, 1)) do
+				if p.Parent.Name == buildingName then
+					building = p.Parent
 				end
 			end
 		end
-		
 	end
 
-	-- If the Wizard survives, continue pathfinding
 	if self.model.Humanoid.Health > 0 then
-		spawn(function()
-			self:FindPath()
-		end)
+		spawn(function() self:FindPath() end)
 	else
-		Team.entities[building.Parent.Parent]:AddGold(Constants.KILL_REWARDS[wizardName])
+		Team.entities[building.Parent.Parent]:AddGold(Config.KILL_REWARDS[Config.WIZARD_NAME])
 	end
 end
 
 function Wizard:FightPlayer(character)
 	self.behavior = "Attacking"
-
-	local wizardName = self.model.Name
 	local enemyTeam = Team.GetTeamFromPlayer(game.Players:FindFirstChild(character.Name))
-	local enemyName = character.Name
 	local inRange = true
-	
-	-- Continue attacking until either the Wizard or the enemy is dead
+
 	while inRange and character.Humanoid.Health > 0 and self.model.Humanoid.Health > 0 do
-		character.Humanoid.Health -= DAMAGE -- Deal damage to the enemy
-		wait(COOLDOWN) -- Wait for the cooldown period
-		
+		character.Humanoid.Health -= stats.Damage
+		wait(stats.Cooldown)
+
 		inRange = false
-		local partsInRegion = workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, RANGE)
-		for _,part in partsInRegion do
-			if part.Parent.Name == enemyName then
+		for _, part in ipairs(workspace:GetPartBoundsInRadius(self.model.PrimaryPart.CFrame.Position, stats.Range)) do
+			if part.Parent.Name == character.Name then
 				inRange = true
 				break
 			end
 		end
 	end
 
-	-- If the Wizard survives, continue pathfinding
-	if self.model.Humanoid.Health > 0 then		
-		spawn(function()
-			self:FindPath()
-		end)
+	if self.model.Humanoid.Health > 0 then
+		spawn(function() self:FindPath() end)
 	else
-		enemyTeam:AddGold(Constants.KILL_REWARDS[wizardName])
+		enemyTeam:AddGold(Config.KILL_REWARDS[Config.WIZARD_NAME])
 	end
 end
 
